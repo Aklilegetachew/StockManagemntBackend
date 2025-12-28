@@ -11,6 +11,8 @@ const user_1 = require("./entities/user");
 const branches_1 = require("./entities/branches");
 const role_1 = require("./entities/role");
 const userActivity_1 = require("./entities/userActivity");
+const Product_1 = require("./entities/Product");
+const CentralStock_1 = require("./entities/CentralStock");
 dotenv_1.default.config();
 exports.AppDataSource = new typeorm_1.DataSource({
     type: "mysql",
@@ -21,7 +23,7 @@ exports.AppDataSource = new typeorm_1.DataSource({
     database: process.env.DB_NAME,
     synchronize: true,
     logging: false,
-    entities: [user_1.User, branches_1.Branch, role_1.Role, userActivity_1.UserActivityLog],
+    entities: [user_1.User, branches_1.Branch, role_1.Role, userActivity_1.UserActivityLog, Product_1.Product, CentralStock_1.CentralStock],
     migrations: [],
     subscribers: [],
 });

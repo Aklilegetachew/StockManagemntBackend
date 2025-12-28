@@ -9,6 +9,8 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const data_source_1 = require("./data-source");
 const user_routes_1 = __importDefault(require("./modules/users/user.routes"));
 const role_routes_1 = __importDefault(require("./modules/roles/role.routes"));
+const branch_routes_1 = __importDefault(require("./modules/branches/branch.routes"));
+const product_routes_1 = __importDefault(require("./modules/products/product.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
@@ -19,6 +21,8 @@ app.use((0, cors_1.default)({
 app.use(express_1.default.json());
 app.use("/api/users", user_routes_1.default);
 app.use("/api/roles", role_routes_1.default);
+app.use("/api/branches", branch_routes_1.default);
+app.use("/api/products", product_routes_1.default);
 app.get("/", (req, res) => {
     res.send("Hello World!");
 });

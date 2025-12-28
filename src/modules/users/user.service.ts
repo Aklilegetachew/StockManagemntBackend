@@ -61,8 +61,16 @@ export class UserService {
       role: user.role.code,
       branchId: user.branch?.id,
     })
+    const safeUser = {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      username: user.username,
+      role: user.role.code,
+      branch: user.branch?.id,
+    }
 
-    return { token, user }
+    return { token, user: safeUser }
   }
 
   static async forgotPassword(email: string) {

@@ -1,4 +1,4 @@
-// src/modules/products/product.routes.ts
+
 import { Router } from "express"
 import { ProductController } from "./product.controller"
 import { asyncHandler } from "../../utils/asyncHandler"

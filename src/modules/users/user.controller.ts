@@ -4,7 +4,8 @@ import { UserService } from "./user.service"
 export class UserController {
   static async signup(req: Request, res: Response) {
     const user = await UserService.signup(req.body)
-    res.status(201).json({ success: true, data: user })
+    const { passwordHash, ...safeUser } = user
+    res.status(201).json({ success: true, data: safeUser })
   }
 
   static async login(req: Request, res: Response) {

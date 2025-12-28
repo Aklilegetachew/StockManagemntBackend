@@ -1,4 +1,3 @@
-// src/entities/BranchProduct.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -9,32 +8,20 @@ import {
   UpdateDateColumn,
   Check,
 } from "typeorm"
-import { Branch } from "./branches"
 import { Product } from "./Product"
 
-@Entity({ name: "branch_products" })
-@Unique(["branch", "product"])
+@Entity({ name: "central_stocks" })
+@Unique(["product"])
 @Check(`"quantity" >= 0`)
-export class BranchProduct {
+export class CentralStock {
   @PrimaryGeneratedColumn("uuid")
   id!: string
-
-  @ManyToOne(() => Branch, { eager: true, onDelete: "CASCADE" })
-  branch!: Branch
 
   @ManyToOne(() => Product, { eager: true, onDelete: "RESTRICT" })
   product!: Product
 
-  @Column({
-    type: "decimal",
-    precision: 14,
-    scale: 3,
-    default: 0,
-  })
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   quantity!: number
-
-  @Column({ default: true })
-  isActive!: boolean
 
   @CreateDateColumn()
   createdAt!: Date
