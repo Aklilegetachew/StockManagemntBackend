@@ -43,4 +43,16 @@ router.patch(
   asyncHandler(BranchController.deactivateBranch)
 )
 
+router.get(
+  "/stock-summary",
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  asyncHandler(BranchController.getBranchStockSummary)
+)
+
+router.get(
+  "/:id/stocks",
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  asyncHandler(BranchController.getBranchStock)
+)
+
 export default router

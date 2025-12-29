@@ -1,5 +1,11 @@
 // src/entities/StockMovement.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from "typeorm"
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+} from "typeorm"
 import { Product } from "./Product"
 import { Branch } from "./branches"
 
@@ -22,7 +28,11 @@ export class StockMovement {
   @Column({ type: "enum", enum: StockMovementType })
   type!: StockMovementType
 
-  @Column({ type: "decimal", precision: 14, scale: 3 })
+  @Column({
+    type: "decimal",
+    precision: 12,
+    scale: 2,
+  })
   quantity!: number
 
   @Column()

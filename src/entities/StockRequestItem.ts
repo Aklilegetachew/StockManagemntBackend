@@ -14,9 +14,18 @@ export class StockRequestItem {
   @ManyToOne(() => Product, { eager: true })
   product!: Product
 
-  @Column({ type: "decimal", precision: 14, scale: 3 })
+  @Column({
+    type: "decimal",
+    precision: 12,
+    scale: 2,
+  })
   requestedQuantity!: number
 
-  @Column({ type: "decimal", precision: 14, scale: 3, nullable: true })
-  approvedQuantity?: number
+  @Column({
+    type: "decimal",
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  approvedQuantity!: number
 }

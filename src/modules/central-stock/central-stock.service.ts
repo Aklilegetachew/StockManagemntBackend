@@ -4,6 +4,7 @@ import { CentralStock } from "../../entities/CentralStock"
 import { Product } from "../../entities/Product"
 import { StockMovement, StockMovementType } from "../../entities/StockMovement"
 import { AppError } from "../../errors/AppError"
+import { roundQty } from "../../utils/helperFunction"
 
 export class CentralStockService {
   static centralStockRepo = AppDataSource.getRepository(CentralStock)
@@ -41,11 +42,12 @@ export class CentralStockService {
         quantity,
       })
     } else {
-      const sum = centralStock.quantity + quantity
-      centralStock.quantity = parseFloat(sum.toFixed(2))
+      centralStock.quantity = roundQty(
+        Number(centralStock.quantity) + Number(quantity)
+      )
     }
 
-    // Optional: store note if you want to track reason in CentralStock (can add a note column)
+    
     if (note) (centralStock as any).note = note
 
     const savedCentralStock = await this.centralStockRepo.save(centralStock)

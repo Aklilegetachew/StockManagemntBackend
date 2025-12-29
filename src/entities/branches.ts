@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm"
 import { User } from "./user"
+import { BranchProduct } from "./BranchProduct"
 
 @Entity({ name: "branches" })
 export class Branch {
@@ -17,4 +18,7 @@ export class Branch {
 
   @OneToMany(() => User, (user) => user.branch)
   users!: User[]
+
+  @OneToMany(() => BranchProduct, (bp) => bp.branch)
+  products!: BranchProduct[]
 }

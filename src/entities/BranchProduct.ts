@@ -27,8 +27,8 @@ export class BranchProduct {
 
   @Column({
     type: "decimal",
-    precision: 14,
-    scale: 3,
+    precision: 12,
+    scale: 2,
     default: 0,
   })
   quantity!: number

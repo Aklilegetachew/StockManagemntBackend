@@ -112,6 +112,21 @@ export class UserService {
     await this.userRepo.save(user)
   }
 
+  static async findAll() {
+    return this.userRepo.find({
+      relations: ["role", "branch"],
+    })
+  }
+
+  static async findById(userId: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ["role", "branch"],
+    })
+    if (!user) throw new AppError("User not found", 404)
+    return user
+  }
+
   static async editUser(userId: string, data: any) {
     const user = await this.userRepo.findOneBy({ id: userId })
     if (!user) throw new AppError("User not found", 404)

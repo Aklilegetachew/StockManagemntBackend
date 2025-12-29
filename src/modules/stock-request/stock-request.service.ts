@@ -8,6 +8,7 @@ import { Branch } from "../../entities/branches"
 import { Product } from "../../entities/Product"
 import { User } from "../../entities/user"
 import { StockMovement, StockMovementType } from "../../entities/StockMovement"
+import { roundQty } from "../../utils/helperFunction"
 
 export class StockRequestService {
   static stockRequestRepo = AppDataSource.getRepository(StockRequest)
@@ -106,31 +107,49 @@ export class StockRequestService {
   // Dispatch only approved quantities with transaction
   static async dispatchRequest(requestId: string) {
     return await AppDataSource.transaction(async (manager) => {
-      const request = await manager.getRepository(StockRequest).findOne({
+      const requestRepo = manager.getRepository(StockRequest)
+      const centralStockRepo = manager.getRepository(CentralStock)
+      const movementRepo = manager.getRepository(StockMovement)
+
+      const request = await requestRepo.findOne({
         where: { id: requestId },
-        relations: ["items", "branch"],
+        relations: ["items", "items.product", "branch"],
       })
+
       if (!request) throw new AppError("Stock request not found", 404)
       if (request.status !== StockRequestStatus.APPROVED)
         throw new AppError("Only approved requests can be dispatched", 400)
 
       for (const item of request.items) {
-        const centralStock = await manager.getRepository(CentralStock).findOne({
+        const approvedQty = Number(item.approvedQuantity ?? 0)
+
+        if (approvedQty <= 0) continue
+
+        const centralStock = await centralStockRepo.findOne({
           where: { product: { id: item.product.id } },
         })
-        if (!centralStock || item.approvedQuantity! > centralStock.quantity)
+
+        if (!centralStock)
+          throw new AppError(
+            `Central stock missing for product: ${item.product.name}`,
+            400
+          )
+
+        const currentQty = Number(centralStock.quantity)
+
+        if (approvedQty > currentQty)
           throw new AppError(
             `Insufficient stock for product: ${item.product.name}`,
             400
           )
 
-        centralStock.quantity -= item.approvedQuantity!
-        await manager.getRepository(CentralStock).save(centralStock)
+        centralStock.quantity = roundQty(currentQty - approvedQty)
+        await centralStockRepo.save(centralStock)
 
-        await manager.getRepository(StockMovement).save({
+        await movementRepo.save({
           product: item.product,
           type: StockMovementType.DEDUCTION,
-          quantity: item.approvedQuantity!,
+          quantity: approvedQty,
           reference: request.id,
           note: `Dispatched to ${request.branch.name}`,
         })
@@ -138,23 +157,33 @@ export class StockRequestService {
 
       request.status = StockRequestStatus.DISPATCHED
       request.dispatchedAt = new Date()
-      return manager.getRepository(StockRequest).save(request)
+
+      return requestRepo.save(request)
     })
   }
 
-  // Branch receives dispatched stock with transaction
+  
   static async receiveStock(requestId: string) {
     return await AppDataSource.transaction(async (manager) => {
-      const request = await manager.getRepository(StockRequest).findOne({
+      const requestRepo = manager.getRepository(StockRequest)
+      const branchProductRepo = manager.getRepository(BranchProduct)
+      const movementRepo = manager.getRepository(StockMovement)
+
+      const request = await requestRepo.findOne({
         where: { id: requestId },
-        relations: ["items", "branch"],
+        relations: ["items", "items.product", "branch"],
       })
+
       if (!request) throw new AppError("Stock request not found", 404)
       if (request.status !== StockRequestStatus.DISPATCHED)
         throw new AppError("Only dispatched requests can be received", 400)
 
       for (const item of request.items) {
-        let branchProduct = await manager.getRepository(BranchProduct).findOne({
+        const approvedQty = Number(item.approvedQuantity ?? 0)
+
+        if (approvedQty <= 0) continue // skip safely
+
+        let branchProduct = await branchProductRepo.findOne({
           where: {
             branch: { id: request.branch.id },
             product: { id: item.product.id },
@@ -162,29 +191,33 @@ export class StockRequestService {
         })
 
         if (!branchProduct) {
-          branchProduct = manager.getRepository(BranchProduct).create({
+          branchProduct = branchProductRepo.create({
             branch: request.branch,
             product: item.product,
-            quantity: item.approvedQuantity!,
+            quantity: roundQty(approvedQty),
           })
         } else {
-          branchProduct.quantity += item.approvedQuantity!
+          const currentQty = Number(branchProduct.quantity)
+          branchProduct.quantity = roundQty(currentQty + approvedQty)
         }
-        await manager.getRepository(BranchProduct).save(branchProduct)
 
-        await manager.getRepository(StockMovement).save({
+        await branchProductRepo.save(branchProduct)
+
+   
+        await movementRepo.save({
           product: item.product,
           branch: request.branch,
           type: StockMovementType.ADDITION,
-          quantity: item.approvedQuantity!,
+          quantity: approvedQty,
           reference: request.id,
-          note: `Received from central`,
+          note: "Received from central",
         })
       }
 
       request.status = StockRequestStatus.RECEIVED
       request.receivedAt = new Date()
-      return manager.getRepository(StockRequest).save(request)
+
+      return requestRepo.save(request)
     })
   }
 }

@@ -24,6 +24,34 @@ export class UserController {
     res.json({ success: true, message: "Password has been reset successfully" })
   }
 
+  static async getAllUsers(req: Request, res: Response) {
+    const users = await UserService.findAll()
+    const safeUsers = users.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      username: user.username,
+      role: user.role.code,
+      branch: user.branch?.name || null,
+      isActive: user.isActive,
+    }))
+    res.json({ success: true, data: safeUsers })
+  }
+
+  static async getUserById(req: Request, res: Response) {
+    const user = await UserService.findById(req.params.id)
+    const safeUser = {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      username: user.username,
+      role: user.role.code,
+      branch: user.branch?.name || null,
+      isActive: user.isActive,
+    }
+    res.json({ success: true, data: safeUser })
+  }
+
   static async editUser(req: Request, res: Response) {
     const user = await UserService.editUser(req.params.id, req.body)
     res.json({ success: true, data: user })

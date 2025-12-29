@@ -27,4 +27,14 @@ export class BranchController {
     await BranchService.deactivateBranch(req.params.id)
     res.status(204).send()
   }
+
+  static async getBranchStock(req: Request, res: Response) {
+    const stock = await BranchService.getBranchStock(req.params.id)
+    res.json({ success: true, data: stock })
+  }
+
+  static async getBranchStockSummary(req: Request, res: Response) {
+    const summary = await BranchService.getBranchStockSummary()
+    res.json({ success: true, data: summary })
+  }
 }

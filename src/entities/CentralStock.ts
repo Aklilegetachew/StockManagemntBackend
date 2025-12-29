@@ -20,7 +20,12 @@ export class CentralStock {
   @ManyToOne(() => Product, { eager: true, onDelete: "RESTRICT" })
   product!: Product
 
-  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  @Column({
+    type: "decimal",
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
   quantity!: number
 
   @CreateDateColumn()
