@@ -14,33 +14,45 @@ export class UserService {
   static branchRepo = AppDataSource.getRepository(Branch)
 
   static async signup(data: any) {
-    const { fullName, email, username, password, roleCode, branchId } = data
+    const {
+      fullName,
+      email,
+      username,
+      password,
+      role: roleId,
+      branch: branchId,
+    } = data
 
+    // Check if email or username already exists
     const exists = await this.userRepo.findOne({
       where: [{ email }, { username }],
     })
-
     if (exists) throw new AppError("User already exists", 409)
 
-    const role = await this.roleRepo.findOneBy({ code: roleCode })
-    if (!role) throw new AppError("Invalid role")
+    // Fetch the role entity using the UUID from request
+    const role = await this.roleRepo.findOneBy({ id: roleId })
+    if (!role) throw new AppError("Invalid role", 400)
 
-    let branch = null
+    // Assign branch only if role requires it
+    let assignedBranch: Branch | null = null
     if (role.code === "BRANCH_MANAGER") {
-      if (!branchId) throw new AppError("Branch is required")
-      branch = await this.branchRepo.findOneBy({ id: branchId })
-      if (!branch) throw new AppError("Branch not found")
+      if (!branchId)
+        throw new AppError("Branch is required for branch managers", 400)
+      assignedBranch = await this.branchRepo.findOneBy({ id: branchId })
+      if (!assignedBranch) throw new AppError("Branch not found", 404)
     }
 
+    // Create user entity
     const user = this.userRepo.create({
       fullName,
       email,
       username,
       passwordHash: await hashPassword(password),
       role,
-      branch,
+      branch: assignedBranch,
     })
 
+    // Save to database
     return this.userRepo.save(user)
   }
 

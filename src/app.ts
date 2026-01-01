@@ -11,6 +11,8 @@ import stockRequestRoutes from "./modules/stock-request/stock-request.route"
 import stockMovementRoutes from "./modules/stock-movement/stock-movement.route"
 import centralStockRoutes from "./modules/central-stock/central-stock.route"
 
+import { errorHandler } from "./middlewares/error.middleware"
+
 dotenv.config()
 
 const app = express()
@@ -31,10 +33,11 @@ app.use("/api/stock-requests", stockRequestRoutes)
 app.use("/api/stock-movements", stockMovementRoutes)
 app.use("/api/central-stock", centralStockRoutes)
 
-
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!")
 })
+
+app.use(errorHandler)
 
 AppDataSource.initialize()
   .then(() => {

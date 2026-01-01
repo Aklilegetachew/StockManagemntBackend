@@ -11,11 +11,15 @@ export const errorHandler = (
     return res.status(err.statusCode).json({
       success: false,
       message: err.message,
+      data: null,
     })
   }
+
+  console.error("Unhandle Error:", err)
 
   return res.status(500).json({
     success: false,
     message: "Internal server error",
+    data: null,
   })
 }

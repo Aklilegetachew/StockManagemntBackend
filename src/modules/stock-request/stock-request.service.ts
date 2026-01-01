@@ -70,36 +70,67 @@ export class StockRequestService {
   // Central approves request (can be partial)
   static async approveRequest(
     requestId: string,
-    approvedItems: { itemId: string; approvedQuantity: number }[],
+    approvedItems: { productId: string; approvedQuantity: number }[],
     note?: string
   ) {
     const request = await this.stockRequestRepo.findOne({
       where: { id: requestId },
-      relations: ["items"],
+      relations: ["items", "items.product"],
     })
-    if (!request) throw new AppError("Stock request not found", 404)
-    if (request.status !== StockRequestStatus.PENDING)
-      throw new AppError("Only pending requests can be approved", 400)
+
+    if (!request) {
+      throw new AppError("Stock request not found", 404)
+    }
+
+    if (request.status !== StockRequestStatus.PENDING) {
+      throw new AppError("Only pending requests can be approved", 409)
+    }
+
+    if (!Array.isArray(request.items)) {
+      throw new AppError("Stock request items are corrupted", 500)
+    }
+
+    // Map for O(1) lookup
+    const requestItemMap = new Map(
+      request.items.map((item) => [item.product.id, item])
+    )
 
     for (const approvedItem of approvedItems) {
-      const item = request.items.find((i) => i.id === approvedItem.itemId)
-      if (!item)
-        throw new AppError(`Item not found: ${approvedItem.itemId}`, 404)
-      if (
-        approvedItem.approvedQuantity < 0 ||
-        approvedItem.approvedQuantity > item.requestedQuantity
-      )
+      const item = requestItemMap.get(approvedItem.productId)
+
+      if (!item) {
         throw new AppError(
-          "Approved quantity must be between 0 and requested quantity",
+          `Product ${approvedItem.productId} is not part of this request`,
+          404
+        )
+      }
+
+      if (approvedItem.approvedQuantity < 0) {
+        throw new AppError(
+          `Approved quantity cannot be negative (${item.product.name})`,
           400
         )
+      }
+
+      if (approvedItem.approvedQuantity > item.requestedQuantity) {
+        throw new AppError(
+          `Approved quantity exceeds requested quantity for ${item.product.name}`,
+          400
+        )
+      }
 
       item.approvedQuantity = approvedItem.approvedQuantity
     }
 
+    // Determine final status
+    const fullyApproved = request.items.every(
+      (i) => i.approvedQuantity === i.requestedQuantity
+    )
+
     request.status = StockRequestStatus.APPROVED
+
     request.approvedAt = new Date()
-    request.note = note
+    request.note = note ?? ""
 
     return this.stockRequestRepo.save(request)
   }
@@ -162,7 +193,6 @@ export class StockRequestService {
     })
   }
 
-  
   static async receiveStock(requestId: string) {
     return await AppDataSource.transaction(async (manager) => {
       const requestRepo = manager.getRepository(StockRequest)
@@ -203,7 +233,6 @@ export class StockRequestService {
 
         await branchProductRepo.save(branchProduct)
 
-   
         await movementRepo.save({
           product: item.product,
           branch: request.branch,
@@ -219,5 +248,51 @@ export class StockRequestService {
 
       return requestRepo.save(request)
     })
+  }
+
+  static async editRequestBeforeApproval(
+    requestId: string,
+    items: { productId: string; quantity: number }[]
+  ) {
+    const request = await this.stockRequestRepo.findOne({
+      where: { id: requestId },
+      relations: ["items", "items.product", "branch"],
+    })
+    if (!request) throw new AppError("Stock request not found", 404)
+    if (request.status !== StockRequestStatus.PENDING)
+      throw new AppError("Only pending requests can be edited", 400)
+
+    for (const item of items) {
+      const requestItem = request.items.find(
+        (i) => i.product.id === item.productId
+      )
+      if (!requestItem)
+        throw new AppError(`Item not found: ${item.productId}`, 404)
+      requestItem.requestedQuantity = item.quantity
+    }
+
+    return this.stockRequestRepo.save(request)
+  }
+
+  static async getMyBranchDispatchedRequests(branchId: string) {
+    const requests = await this.stockRequestRepo.find({
+      where: {
+        branch: { id: branchId },
+        status: StockRequestStatus.DISPATCHED,
+      },
+      relations: ["items", "branch", "requestedBy"],
+    })
+    return requests
+  }
+
+  static async getMyBranchReceivedRequests(branchId: string) {
+    const requests = await this.stockRequestRepo.find({
+      where: {
+        branch: { id: branchId },
+        status: StockRequestStatus.RECEIVED,
+      },
+      relations: ["items", "branch", "requestedBy"],
+    })
+    return requests
   }
 }

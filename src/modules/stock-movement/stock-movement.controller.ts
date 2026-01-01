@@ -1,6 +1,6 @@
-
 import { Request, Response } from "express"
 import { StockMovementService } from "./stock-movement.service"
+import { sendResponse } from "../../utils/response"
 
 export class StockMovementController {
   static async getSummary(req: Request, res: Response) {
@@ -13,6 +13,12 @@ export class StockMovementController {
       toDate as string
     )
 
-    res.status(200).json(summary)
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Stock summary fetched successfully",
+      summary
+    )
   }
 }

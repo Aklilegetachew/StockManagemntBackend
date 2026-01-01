@@ -33,6 +33,14 @@ export class BranchProduct {
   })
   quantity!: number
 
+  @Column({
+    type: "decimal",
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  price!: number
+
   @Column({ default: true })
   isActive!: boolean
 

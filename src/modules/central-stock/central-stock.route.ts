@@ -1,4 +1,3 @@
-
 import { Router } from "express"
 import { CentralStockController } from "./central-stock.controller"
 import { authMiddleware } from "../../middlewares/auth.middleware"
@@ -14,6 +13,24 @@ router.post(
   "/add",
   roleGuard(RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),
   asyncHandler(CentralStockController.addStock)
+)
+
+router.put(
+  "/update",
+  roleGuard(RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),
+  asyncHandler(CentralStockController.updateCentralStock)
+)
+
+router.get(
+  "/",
+  roleGuard(RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),
+  asyncHandler(CentralStockController.getCentralStock)
+)
+
+router.get(
+  "/:id/summary",
+  roleGuard(RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),
+  asyncHandler(CentralStockController.getCentralStockSummary)
 )
 
 export default router

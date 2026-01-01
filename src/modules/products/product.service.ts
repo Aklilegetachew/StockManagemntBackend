@@ -3,8 +3,8 @@ import { AppDataSource } from "../../data-source"
 import { Product } from "../../entities/Product"
 import { Branch } from "../../entities/branches"
 import { BranchProduct } from "../../entities/BranchProduct"
-import { AppError } from "../../errors/AppError"
 import { CentralStock } from "../../entities/CentralStock"
+import { AppError } from "../../errors/AppError"
 
 export class ProductService {
   static productRepo = AppDataSource.getRepository(Product)
@@ -12,18 +12,29 @@ export class ProductService {
   static branchProductRepo = AppDataSource.getRepository(BranchProduct)
   static centralStockRepo = AppDataSource.getRepository(CentralStock)
 
-  static async createProduct(data: any) {
+  // -------------------------
+  // Product
+  // -------------------------
+  static async createProduct(data: Partial<Product>) {
+    if (!data.name || !data.sku) {
+      throw new AppError("Product name and SKU are required", 400)
+    }
+
     const exists = await this.productRepo.findOne({
       where: [{ name: data.name }, { sku: data.sku }],
     })
 
-    if (exists) throw new AppError("Product already exists", 409)
+    if (exists) {
+      throw new AppError(
+        "A product with the same name or SKU already exists",
+        409
+      )
+    }
 
-    // 1️⃣ Create product
-    const product = this.productRepo.create(data as Partial<Product>)
-    const savedProduct = (await this.productRepo.save(product)) as Product
+    const product = this.productRepo.create(data)
+    const savedProduct = await this.productRepo.save(product)
 
-    // 2️⃣ Create central stock
+    // Ensure central stock is created once
     await this.centralStockRepo.save({
       product: { id: savedProduct.id },
       quantity: 0,
@@ -38,36 +49,67 @@ export class ProductService {
 
   static async getProductById(id: string) {
     const product = await this.productRepo.findOneBy({ id })
-    if (!product) throw new AppError("Product not found", 404)
+
+    if (!product) {
+      throw new AppError("Product not found", 404)
+    }
+
     return product
   }
 
-  static async updateProduct(id: string, data: any) {
+  static async updateProduct(id: string, data: Partial<Product>) {
     const product = await this.getProductById(id)
+
+    // Optional guard: prevent changing immutable fields
+    if ("id" in data || "sku" in data) {
+      throw new AppError("Cannot update immutable product fields", 400)
+    }
+
     Object.assign(product, data)
     return this.productRepo.save(product)
   }
 
-  static async assignProductToBranch(productId: string, branchId: string) {
+  // -------------------------
+  // Branch assignment
+  // -------------------------
+  static async assignProductToBranch(
+    productId: string,
+    branchId: string,
+    price: number,
+    quantity: number
+  ) {
+    if (price < 0 || quantity < 0) {
+      throw new AppError("Price and quantity must be non-negative", 400)
+    }
+
     const product = await this.getProductById(productId)
 
-    const branch = await this.branchRepo.findOneBy({
-      id: branchId,
-      isActive: true,
+    const branch = await this.branchRepo.findOne({
+      where: { id: branchId, isActive: true },
     })
-    if (!branch) throw new AppError("Branch not found", 404)
 
-    const exists = await this.branchProductRepo.findOne({
-      where: { product, branch },
+    if (!branch) {
+      throw new AppError("Branch not found or inactive", 404)
+    }
+
+    const alreadyAssigned = await this.branchProductRepo.findOne({
+      where: {
+        product: { id: product.id },
+        branch: { id: branch.id },
+      },
     })
-    if (exists) return exists
 
-    const bp = this.branchProductRepo.create({
+    if (alreadyAssigned) {
+      throw new AppError("This product is already assigned to the branch", 409)
+    }
+
+    const branchProduct = this.branchProductRepo.create({
       product,
       branch,
-      quantity: 0,
+      price,
+      quantity,
     })
 
-    return this.branchProductRepo.save(bp)
+    return this.branchProductRepo.save(branchProduct)
   }
 }

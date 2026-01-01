@@ -48,4 +48,28 @@ router.put(
   asyncHandler(StockRequestController.dispatchRequest)
 )
 
+router.get(
+  "/my-branch-requests",
+  roleGuard(RoleCode.BRANCH_MANAGER),
+  asyncHandler(StockRequestController.getMyBranchRequests)
+)
+
+router.put(
+  "/editRequestBeforeApproval/:id",
+  roleGuard(RoleCode.BRANCH_MANAGER),
+  asyncHandler(StockRequestController.editRequestBeforeApproval)
+)
+
+router.get(
+  "/my-branch-dispatched-requests",
+  roleGuard(RoleCode.BRANCH_MANAGER),
+  asyncHandler(StockRequestController.getMyBranchDispatchedRequests)
+)
+
+router.get(
+  "/my-branch-received-requests",
+  roleGuard(RoleCode.BRANCH_MANAGER),
+  asyncHandler(StockRequestController.getMyBranchReceivedRequests)
+)
+
 export default router

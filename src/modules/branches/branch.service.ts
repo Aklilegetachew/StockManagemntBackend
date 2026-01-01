@@ -80,6 +80,7 @@ export class BranchService {
         sku: s.product.sku,
         unit: s.product.unit,
         quantity: Number(s.quantity),
+        price: Number(s.price),
       })),
     }
   }

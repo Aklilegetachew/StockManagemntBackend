@@ -13,13 +13,13 @@ router.use(authMiddleware)
 // SUPER_ADMIN only
 router.post(
   "/",
-  roleGuard(RoleCode.SUPER_ADMIN),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
   asyncHandler(BranchController.createBranch)
 )
 
 router.put(
   "/:id",
-  roleGuard(RoleCode.SUPER_ADMIN),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
   asyncHandler(BranchController.updateBranch)
 )
 
@@ -39,7 +39,7 @@ router.get(
 
 router.patch(
   "/:id/deactivate",
-  roleGuard(RoleCode.SUPER_ADMIN),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
   asyncHandler(BranchController.deactivateBranch)
 )
 
@@ -51,7 +51,7 @@ router.get(
 
 router.get(
   "/:id/stocks",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.BRANCH_MANAGER),
   asyncHandler(BranchController.getBranchStock)
 )
 
