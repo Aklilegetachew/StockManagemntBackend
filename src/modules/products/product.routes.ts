@@ -10,7 +10,7 @@ const router = Router()
 
 router.use(authMiddleware)
 
-// Central & Super Admin
+
 router.post(
   "/",
   roleGuard(RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),

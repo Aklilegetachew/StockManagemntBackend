@@ -10,8 +10,11 @@ import { Product } from "./Product"
 import { Branch } from "./branches"
 
 export enum StockMovementType {
-  ADDITION = "ADDITION",
-  DEDUCTION = "DEDUCTION",
+  ADDITION = "ADDITION", // Generic addition
+  DEDUCTION = "DEDUCTION", // Generic deduction (breakage, theft)
+  SALE = "SALE", // Sales report
+  TRANSFER_IN = "TRANSFER_IN", // Transfer received
+  TRANSFER_OUT = "TRANSFER_OUT", // Transfer dispatched
 }
 
 @Entity({ name: "stock_movements" })

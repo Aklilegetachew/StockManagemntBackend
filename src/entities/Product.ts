@@ -4,10 +4,12 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
+  ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
 } from "typeorm"
 import { BranchProduct } from "./BranchProduct"
+import { Category } from "./Category"
 
 @Entity({ name: "products" })
 export class Product {
@@ -31,6 +33,11 @@ export class Product {
 
   @OneToMany(() => BranchProduct, (bp) => bp.product)
   branches!: BranchProduct[]
+
+  @ManyToOne(() => Category, (category) => category.products, {
+    nullable: true,
+  })
+  category?: Category
 
   @CreateDateColumn()
   createdAt!: Date

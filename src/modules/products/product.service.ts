@@ -15,23 +15,33 @@ export class ProductService {
   // -------------------------
   // Product
   // -------------------------
-  static async createProduct(data: Partial<Product>) {
+  static async createProduct(data: Partial<Product> & { categoryId?: string }) {
     if (!data.name || !data.sku) {
       throw new AppError("Product name and SKU are required", 400)
     }
 
     const exists = await this.productRepo.findOne({
-      where: [{ name: data.name }, { sku: data.sku }],
+      where: { name: data.name },
     })
 
     if (exists) {
-      throw new AppError(
-        "A product with the same name or SKU already exists",
-        409
-      )
+      throw new AppError("A product with the same name already exists", 409)
+    }
+
+    const checkSku = await this.productRepo.findOne({
+      where: { sku: data.sku },
+    })
+
+    if (checkSku) {
+      throw new AppError("A product with the same SKU already exists", 409)
     }
 
     const product = this.productRepo.create(data)
+
+    if (data.categoryId) {
+      product.category = { id: data.categoryId } as any
+    }
+
     const savedProduct = await this.productRepo.save(product)
 
     // Ensure central stock is created once
@@ -44,11 +54,17 @@ export class ProductService {
   }
 
   static async getProducts() {
-    return this.productRepo.find({ where: { isActive: true } })
+    return this.productRepo.find({
+      where: { isActive: true },
+      relations: ["category"],
+    })
   }
 
   static async getProductById(id: string) {
-    const product = await this.productRepo.findOneBy({ id })
+    const product = await this.productRepo.findOne({
+      where: { id },
+      relations: ["category"],
+    })
 
     if (!product) {
       throw new AppError("Product not found", 404)
@@ -57,12 +73,28 @@ export class ProductService {
     return product
   }
 
-  static async updateProduct(id: string, data: Partial<Product>) {
+  static async updateProduct(
+    id: string,
+    data: Partial<Product> & { categoryId?: string }
+  ) {
     const product = await this.getProductById(id)
 
     // Optional guard: prevent changing immutable fields
-    if ("id" in data || "sku" in data) {
-      throw new AppError("Cannot update immutable product fields", 400)
+    if ("id" in data) {
+      delete (data as any).id
+    }
+
+    if (data.sku && data.sku !== product.sku) {
+      const checkSku = await this.productRepo.findOne({
+        where: { sku: data.sku },
+      })
+      if (checkSku) {
+        throw new AppError("A product with the same SKU already exists", 409)
+      }
+    }
+
+    if (data.categoryId) {
+      product.category = { id: data.categoryId } as any
     }
 
     Object.assign(product, data)

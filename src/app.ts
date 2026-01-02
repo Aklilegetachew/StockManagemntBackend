@@ -10,6 +10,10 @@ import productRoutes from "./modules/products/product.routes"
 import stockRequestRoutes from "./modules/stock-request/stock-request.route"
 import stockMovementRoutes from "./modules/stock-movement/stock-movement.route"
 import centralStockRoutes from "./modules/central-stock/central-stock.route"
+import categoryRoutes from "./modules/categories/category.routes"
+import salesReportRoutes from "./modules/sales-report/sales-report.routes"
+import analyticsRoutes from "./modules/analytics/analytics.routes"
+import alertRoutes from "./modules/alerts/alerts.routes"
 
 import { errorHandler } from "./middlewares/error.middleware"
 
@@ -19,7 +23,7 @@ const app = express()
 app.use(
   cors({
     origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     credentials: false,
   })
 )
@@ -32,6 +36,10 @@ app.use("/api/products", productRoutes)
 app.use("/api/stock-requests", stockRequestRoutes)
 app.use("/api/stock-movements", stockMovementRoutes)
 app.use("/api/central-stock", centralStockRoutes)
+app.use("/api/categories", categoryRoutes)
+app.use("/api/sales-reports", salesReportRoutes)
+app.use("/api/analytics", analyticsRoutes)
+app.use("/api/alerts", alertRoutes)
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!")

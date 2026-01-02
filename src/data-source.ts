@@ -11,6 +11,10 @@ import { BranchProduct } from "./entities/BranchProduct"
 import { StockRequest } from "./entities/StockRequest"
 import { StockMovement } from "./entities/StockMovement"
 import { StockRequestItem } from "./entities/StockRequestItem"
+import { Category } from "./entities/Category"
+import { SalesReport } from "./entities/SalesReport"
+import { SalesReportItem } from "./entities/SalesReportItem"
+import { Alert } from "./entities/Alert"
 
 dotenv.config()
 
@@ -34,7 +38,10 @@ export const AppDataSource = new DataSource({
     StockRequest,
     StockMovement,
     StockRequestItem,
-    
+    Category,
+    SalesReport,
+    SalesReportItem,
+    Alert,
   ],
   migrations: [],
   subscribers: [],
