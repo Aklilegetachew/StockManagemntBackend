@@ -43,4 +43,16 @@ export class StockMovementService {
 
     return movements
   }
+
+  static async getBranchProductSummary(productId: string, branchId: string) {
+    const query = this.stockMovementRepo
+      .createQueryBuilder("sm")
+      .where("sm.productId = :productId", { productId })
+      .andWhere("sm.branchId = :branchId", { branchId })
+
+    const movements = await query.getMany()
+    if (!movements.length) throw new AppError("No stock movement found", 404)
+
+    return movements
+  }
 }

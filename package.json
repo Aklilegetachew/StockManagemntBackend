@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/pdfkit": "^0.17.4",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -23,6 +24,7 @@
     "mysql2": "^3.16.0",
     "nodemailer": "^7.0.12",
     "nodemon": "^3.1.11",
+    "pdfkit": "^0.17.2",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.28",

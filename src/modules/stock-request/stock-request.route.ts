@@ -72,4 +72,11 @@ router.get(
   asyncHandler(StockRequestController.getMyBranchReceivedRequests)
 )
 
+// Download PDF receipt for any request
+router.get(
+  "/:id/receipt",
+  roleGuard(RoleCode.BRANCH_MANAGER, RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),
+  asyncHandler(StockRequestController.downloadReceipt)
+)
+
 export default router

@@ -4,24 +4,28 @@ import { AppDataSource } from "../../data-source"
 import { CentralStock } from "../../entities/CentralStock"
 import { Product } from "../../entities/Product"
 import { StockMovement, StockMovementType } from "../../entities/StockMovement"
+import { User } from "../../entities/user"
 import { AppError } from "../../errors/AppError"
 import { roundQty } from "../../utils/helperFunction"
 
 export class CentralStockService {
   static centralStockRepo = AppDataSource.getRepository(CentralStock)
   static productRepo = AppDataSource.getRepository(Product)
+  static userRepo = AppDataSource.getRepository(User)
 
   /**
    * Add material to central stock
    * @param productId - Product being added
    * @param quantity - Quantity to add (must be >0)
    * @param note - Optional note (e.g., "purchase", "correction")
+   * @param approvedById - Optional user who performed the addition
    */
   static async addStock(
     productId: string,
     reference: string,
     quantity: number,
-    note?: string
+    note?: string,
+    approvedById?: string
   ) {
     if (quantity <= 0)
       throw new AppError("Quantity must be greater than zero", 400)
@@ -31,6 +35,13 @@ export class CentralStockService {
       isActive: true,
     })
     if (!product) throw new AppError("Product not found", 404)
+
+    // Fetch approver user if provided
+    let approvedBy: User | undefined
+    if (approvedById) {
+      const user = await this.userRepo.findOneBy({ id: approvedById })
+      if (user) approvedBy = user
+    }
 
     let centralStock = await this.centralStockRepo.findOne({
       where: { product: { id: productId } },
@@ -57,6 +68,7 @@ export class CentralStockService {
       quantity: quantity,
       reference: reference,
       note: note,
+      approvedBy: approvedBy,
     })
     return savedCentralStock
   }
@@ -65,7 +77,8 @@ export class CentralStockService {
     productId: string,
     reference: string,
     quantity: number,
-    note?: string
+    note?: string,
+    approvedById?: string
   ) {
     if (quantity <= 0)
       throw new AppError("Quantity must be greater than zero", 400)
@@ -75,6 +88,13 @@ export class CentralStockService {
       isActive: true,
     })
     if (!product) throw new AppError("Product not found", 404)
+
+    // Fetch approver user if provided
+    let approvedBy: User | undefined
+    if (approvedById) {
+      const user = await this.userRepo.findOneBy({ id: approvedById })
+      if (user) approvedBy = user
+    }
 
     let centralStock = await this.centralStockRepo.findOne({
       where: { product: { id: productId } },
@@ -101,6 +121,7 @@ export class CentralStockService {
       quantity: quantity,
       reference: reference,
       note: note,
+      approvedBy: approvedBy,
     })
     return savedCentralStock
   }

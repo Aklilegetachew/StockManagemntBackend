@@ -16,4 +16,11 @@ router.get(
   asyncHandler(StockMovementController.getSummary)
 )
 
+// branch stock movent for a product of specific branch 
+router.get(
+  "/branch/:branchId/product/:productId/summary",
+  roleGuard(RoleCode.BRANCH_MANAGER, RoleCode.SUPER_ADMIN),
+  asyncHandler(StockMovementController.getBranchProductSummary)
+)
+
 export default router

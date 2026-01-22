@@ -14,6 +14,7 @@ import categoryRoutes from "./modules/categories/category.routes"
 import salesReportRoutes from "./modules/sales-report/sales-report.routes"
 import analyticsRoutes from "./modules/analytics/analytics.routes"
 import alertRoutes from "./modules/alerts/alerts.routes"
+import reportRoutes from "./modules/report/reports.routes"
 
 import { errorHandler } from "./middlewares/error.middleware"
 
@@ -40,6 +41,7 @@ app.use("/api/categories", categoryRoutes)
 app.use("/api/sales-reports", salesReportRoutes)
 app.use("/api/analytics", analyticsRoutes)
 app.use("/api/alerts", alertRoutes)
+app.use("/api/reports", reportRoutes)
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!")

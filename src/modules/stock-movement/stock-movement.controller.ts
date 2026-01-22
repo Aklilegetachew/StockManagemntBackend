@@ -21,4 +21,14 @@ export class StockMovementController {
       summary
     )
   }
+
+
+  static async getBranchProductSummary(req: Request, res: Response) {
+    const { productId, branchId } = req.params
+    const summary = await StockMovementService.getBranchProductSummary(
+      productId as string,
+      branchId as string
+    )
+    return sendResponse(res, 200, true, "Branch product summary fetched successfully", summary)
+  }
 }

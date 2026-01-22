@@ -119,6 +119,22 @@ export class StockRequestService {
         )
       }
 
+      // Check if central stock has enough quantity
+      if (approvedItem.approvedQuantity > 0) {
+        const centralStock = await this.centralStockRepo.findOne({
+          where: { product: { id: item.product.id } },
+        })
+
+        const availableQty = centralStock ? Number(centralStock.quantity) : 0
+
+        if (approvedItem.approvedQuantity > availableQty) {
+          throw new AppError(
+            `Insufficient central stock for ${item.product.name}. Available: ${availableQty}, Requested: ${approvedItem.approvedQuantity}`,
+            400
+          )
+        }
+      }
+
       item.approvedQuantity = approvedItem.approvedQuantity
     }
 
@@ -136,20 +152,28 @@ export class StockRequestService {
   }
 
   // Dispatch only approved quantities with transaction
-  static async dispatchRequest(requestId: string) {
+  static async dispatchRequest(requestId: string, dispatcherId?: string) {
     return await AppDataSource.transaction(async (manager) => {
       const requestRepo = manager.getRepository(StockRequest)
       const centralStockRepo = manager.getRepository(CentralStock)
       const movementRepo = manager.getRepository(StockMovement)
+      const userRepo = manager.getRepository(User)
 
       const request = await requestRepo.findOne({
         where: { id: requestId },
-        relations: ["items", "items.product", "branch"],
+        relations: ["items", "items.product", "branch", "requestedBy"],
       })
 
       if (!request) throw new AppError("Stock request not found", 404)
       if (request.status !== StockRequestStatus.APPROVED)
         throw new AppError("Only approved requests can be dispatched", 400)
+
+      // Fetch dispatcher user if provided
+      let approvedBy: User | undefined
+      if (dispatcherId) {
+        const user = await userRepo.findOneBy({ id: dispatcherId })
+        if (user) approvedBy = user
+      }
 
       for (const item of request.items) {
         const approvedQty = Number(item.approvedQuantity ?? 0)
@@ -183,6 +207,8 @@ export class StockRequestService {
           quantity: approvedQty,
           reference: request.id,
           note: `Dispatched to ${request.branch.name}`,
+          requestedBy: request.requestedBy,
+          approvedBy: approvedBy,
         })
       }
 
@@ -201,7 +227,7 @@ export class StockRequestService {
 
       const request = await requestRepo.findOne({
         where: { id: requestId },
-        relations: ["items", "items.product", "branch"],
+        relations: ["items", "items.product", "branch", "requestedBy"],
       })
 
       if (!request) throw new AppError("Stock request not found", 404)
@@ -240,6 +266,7 @@ export class StockRequestService {
           quantity: approvedQty,
           reference: request.id,
           note: "Received from central",
+          requestedBy: request.requestedBy,
         })
       }
 

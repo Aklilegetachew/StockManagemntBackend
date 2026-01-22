@@ -5,11 +5,13 @@ import { sendResponse } from "../../utils/response"
 export class CentralStockController {
   static async addStock(req: Request, res: Response) {
     const { productId, reference, quantity, note } = req.body
+    const userId = (req as any).user?.id
     const stock = await CentralStockService.addStock(
       productId,
       reference,
       quantity,
-      note
+      note,
+      userId
     )
 
     return sendResponse(
@@ -23,11 +25,13 @@ export class CentralStockController {
 
   static async updateCentralStock(req: Request, res: Response) {
     const { productId, reference, quantity, note } = req.body
+    const userId = (req as any).user?.id
     const stock = await CentralStockService.updateCentralStock(
       productId,
       reference,
       quantity,
-      note
+      note,
+      userId
     )
 
     return sendResponse(
@@ -56,13 +60,21 @@ export class CentralStockController {
     const summary = await CentralStockService.getCentralStockMovementsSummary(
       id
     )
+    const safeSummary = summary.map((item) => {
+      return {
+        ...item,
+        requestedBy: item.requestedBy?.fullName || "",
+        approvedBy: item.approvedBy?.fullName || "",
+      }
+    })
+    console.log(summary)  
 
     return sendResponse(
       res,
       200,
       true,
       "Central stock summary fetched successfully",
-      summary
+      safeSummary
     )
   }
 }
