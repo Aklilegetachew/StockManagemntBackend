@@ -1,6 +1,7 @@
 import { AppDataSource } from "../../data-source"
 import { StockRequest, StockRequestStatus } from "../../entities/StockRequest"
 import { StockRequestItem } from "../../entities/StockRequestItem"
+import { StockRequestReturn } from "../../entities/StockRequestReturn"
 import { BranchProduct } from "../../entities/BranchProduct"
 import { CentralStock } from "../../entities/CentralStock"
 import { AppError } from "../../errors/AppError"
@@ -18,6 +19,7 @@ export class StockRequestService {
   static branchRepo = AppDataSource.getRepository(Branch)
   static productRepo = AppDataSource.getRepository(Product)
   static userRepo = AppDataSource.getRepository(User)
+  static stockRequestReturnRepo = AppDataSource.getRepository(StockRequestReturn)
 
   // Branch creates multi-product stock request
   static async createRequest(
@@ -219,11 +221,22 @@ export class StockRequestService {
     })
   }
 
-  static async receiveStock(requestId: string) {
+  static async receiveStock(
+    requestId: string,
+    receivingItems: {
+      productId: string
+      receivedQuantity: number
+      returnedQuantity: number
+      reason?: string
+    }[],
+    userId?: string
+  ) {
     return await AppDataSource.transaction(async (manager) => {
       const requestRepo = manager.getRepository(StockRequest)
       const branchProductRepo = manager.getRepository(BranchProduct)
       const movementRepo = manager.getRepository(StockMovement)
+      const returnRepo = manager.getRepository(StockRequestReturn)
+      const userRepo = manager.getRepository(User)
 
       const request = await requestRepo.findOne({
         where: { id: requestId },
@@ -234,46 +247,119 @@ export class StockRequestService {
       if (request.status !== StockRequestStatus.DISPATCHED)
         throw new AppError("Only dispatched requests can be received", 400)
 
-      for (const item of request.items) {
-        const approvedQty = Number(item.approvedQuantity ?? 0)
+      const reportedBy = userId
+        ? await userRepo.findOneBy({ id: userId })
+        : undefined
 
-        if (approvedQty <= 0) continue // skip safely
+      // Map for easier access
+      const itemMap = new Map(request.items.map((i) => [i.product.id, i]))
 
-        let branchProduct = await branchProductRepo.findOne({
-          where: {
-            branch: { id: request.branch.id },
-            product: { id: item.product.id },
-          },
-        })
-
-        if (!branchProduct) {
-          branchProduct = branchProductRepo.create({
-            branch: request.branch,
-            product: item.product,
-            quantity: roundQty(approvedQty),
-          })
-        } else {
-          const currentQty = Number(branchProduct.quantity)
-          branchProduct.quantity = roundQty(currentQty + approvedQty)
+      for (const receiveInfo of receivingItems) {
+        const item = itemMap.get(receiveInfo.productId)
+        if (!item) {
+          throw new AppError(
+            `Product ${receiveInfo.productId} is not part of this request`,
+            404
+          )
         }
 
-        await branchProductRepo.save(branchProduct)
+        const approvedQty = Number(item.approvedQuantity ?? 0)
+        const totalReporting =
+          Number(receiveInfo.receivedQuantity) +
+          Number(receiveInfo.returnedQuantity)
 
-        await movementRepo.save({
-          product: item.product,
-          branch: request.branch,
-          type: StockMovementType.ADDITION,
-          quantity: approvedQty,
-          reference: request.id,
-          note: "Received from central",
-          requestedBy: request.requestedBy,
-        })
+        if (totalReporting > approvedQty) {
+          throw new AppError(
+            `Total received and returned (${totalReporting}) for ${item.product.name} exceeds approved amount (${approvedQty})`,
+            400
+          )
+        }
+
+        // 1. Handle received portion
+        if (receiveInfo.receivedQuantity > 0) {
+          let branchProduct = await branchProductRepo.findOne({
+            where: {
+              branch: { id: request.branch.id },
+              product: { id: item.product.id },
+            },
+          })
+
+          if (!branchProduct) {
+            branchProduct = branchProductRepo.create({
+              branch: request.branch,
+              product: item.product,
+              quantity: roundQty(receiveInfo.receivedQuantity),
+            })
+          } else {
+            const currentQty = Number(branchProduct.quantity)
+            branchProduct.quantity = roundQty(
+              currentQty + receiveInfo.receivedQuantity
+            )
+          }
+
+          await branchProductRepo.save(branchProduct)
+
+          await movementRepo.save({
+            product: item.product,
+            branch: request.branch,
+            type: StockMovementType.ADDITION,
+            quantity: receiveInfo.receivedQuantity,
+            reference: request.id,
+            note: "Received from central",
+            requestedBy: request.requestedBy,
+          })
+        }
+
+        // 2. Handle returned portion
+        if (receiveInfo.returnedQuantity > 0) {
+          const stockReturn = returnRepo.create({
+            stockRequest: request,
+            stockRequestItem: item,
+            branch: request.branch,
+            quantity: receiveInfo.returnedQuantity,
+            reason: receiveInfo.reason || "Damaged/Defective",
+            reportedBy: reportedBy || undefined,
+          })
+          await returnRepo.save(stockReturn)
+        }
+
+        // 3. Update request item record
+        item.receivedQuantity = receiveInfo.receivedQuantity
+        item.returnedQuantity = receiveInfo.returnedQuantity
+        await manager.getRepository(StockRequestItem).save(item)
       }
 
       request.status = StockRequestStatus.RECEIVED
       request.receivedAt = new Date()
 
       return requestRepo.save(request)
+    })
+  }
+
+  static async getAllReturns() {
+    return await this.stockRequestReturnRepo.find({
+      relations: [
+        "stockRequest",
+        "stockRequestItem",
+        "stockRequestItem.product",
+        "branch",
+        "reportedBy",
+      ],
+      order: { returnedAt: "DESC" },
+    })
+  }
+
+  static async getBranchReturns(branchId: string) {
+    return await this.stockRequestReturnRepo.find({
+      where: { branch: { id: branchId } },
+      relations: [
+        "stockRequest",
+        "stockRequestItem",
+        "stockRequestItem.product",
+        "branch",
+        "reportedBy",
+      ],
+      order: { returnedAt: "DESC" },
     })
   }
 

@@ -99,12 +99,31 @@ function drawItemsTable(
   doc: PDFKit.PDFDocument,
   items: any[],
   startY: number,
-  showApproved: boolean,
+  status: StockRequestStatus,
   colors: { primary: string; bg: string; text: string }
 ) {
   const tableLeft = 50
   const tableWidth = doc.page.width - 100
-  const colWidths = showApproved ? [40, 200, 80, 80, 95] : [50, 280, 165]
+  
+  const isReceived = status === StockRequestStatus.RECEIVED
+  const isApprovedOrDispatched = [
+    StockRequestStatus.APPROVED,
+    StockRequestStatus.DISPATCHED,
+  ].includes(status)
+
+  let colWidths: number[]
+  let headers: string[]
+
+  if (isReceived) {
+    colWidths = [30, 180, 65, 65, 65, 65, 25]
+    headers = ["#", "Product Name", "Req.", "Appr.", "Recv.", "Retr.", "Unit"]
+  } else if (isApprovedOrDispatched) {
+    colWidths = [40, 200, 80, 80, 95]
+    headers = ["#", "Product Name", "Requested", "Approved", "Unit"]
+  } else {
+    colWidths = [50, 280, 165]
+    headers = ["#", "Product Name", "Quantity"]
+  }
   
   // Table header
   doc.rect(tableLeft, startY, tableWidth, 25).fill(colors.primary)
@@ -112,10 +131,6 @@ function drawItemsTable(
   doc.fillColor("#FFFFFF").fontSize(10).font("Helvetica-Bold")
   
   let headerX = tableLeft + 10
-  const headers = showApproved 
-    ? ["#", "Product Name", "Requested", "Approved", "Unit"]
-    : ["#", "Product Name", "Quantity"]
-  
   headers.forEach((header, i) => {
     doc.text(header, headerX, startY + 8, { width: colWidths[i] - 10 })
     headerX += colWidths[i]
@@ -136,19 +151,32 @@ function drawItemsTable(
     const productName = item.product?.name || "Unknown Product"
     const unit = item.product?.unit || "pcs"
     
-    const rowData = showApproved
-      ? [
-          (index + 1).toString(),
-          productName,
-          Number(item.requestedQuantity).toFixed(2),
-          item.approvedQuantity != null ? Number(item.approvedQuantity).toFixed(2) : "-",
-          unit,
-        ]
-      : [
-          (index + 1).toString(),
-          productName,
-          `${Number(item.requestedQuantity).toFixed(2)} ${unit}`,
-        ]
+    let rowData: string[]
+    if (isReceived) {
+      rowData = [
+        (index + 1).toString(),
+        productName,
+        Number(item.requestedQuantity).toFixed(1),
+        Number(item.approvedQuantity || 0).toFixed(1),
+        Number(item.receivedQuantity || 0).toFixed(1),
+        Number(item.returnedQuantity || 0).toFixed(1),
+        unit,
+      ]
+    } else if (isApprovedOrDispatched) {
+      rowData = [
+        (index + 1).toString(),
+        productName,
+        Number(item.requestedQuantity).toFixed(2),
+        item.approvedQuantity != null ? Number(item.approvedQuantity).toFixed(2) : "-",
+        unit,
+      ]
+    } else {
+      rowData = [
+        (index + 1).toString(),
+        productName,
+        `${Number(item.requestedQuantity).toFixed(2)} ${unit}`,
+      ]
+    }
     
     rowData.forEach((data, i) => {
       doc.text(data, cellX, currentY + 6, { width: colWidths[i] - 10 })
@@ -252,7 +280,7 @@ export function generateStockRequestReceipt(
   currentY = drawSectionTitle(doc, "Requested Items", currentY, colors.primary)
   
   if (request.items && request.items.length > 0) {
-    currentY = drawItemsTable(doc, request.items, currentY, showApprovedColumn, colors)
+    currentY = drawItemsTable(doc, request.items, currentY, request.status, colors)
   } else {
     doc.fillColor("#6B7280")
       .fontSize(10)
@@ -275,6 +303,19 @@ export function generateStockRequestReceipt(
     currentY += 15
     doc.fillColor(colors.primary)
       .text(`Total Approved: ${totalApproved.toFixed(2)}`, doc.page.width - 250, currentY)
+
+    if (request.status === StockRequestStatus.RECEIVED) {
+      const totalReceived = request.items.reduce((sum, item) => sum + Number(item.receivedQuantity || 0), 0)
+      const totalReturned = request.items.reduce((sum, item) => sum + Number(item.returnedQuantity || 0), 0)
+      
+      currentY += 15
+      doc.fillColor("#10B981") // Green for received
+        .text(`Total Received: ${totalReceived.toFixed(2)}`, doc.page.width - 250, currentY)
+      
+      currentY += 15
+      doc.fillColor("#EF4444") // Red for returned
+        .text(`Total Returned: ${totalReturned.toFixed(2)}`, doc.page.width - 250, currentY)
+    }
   }
   
   // Footer

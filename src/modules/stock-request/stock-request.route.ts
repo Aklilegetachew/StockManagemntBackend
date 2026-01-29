@@ -72,6 +72,19 @@ router.get(
   asyncHandler(StockRequestController.getMyBranchReceivedRequests)
 )
 
+// Returns management
+router.get(
+  "/returns",
+  roleGuard(RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),
+  asyncHandler(StockRequestController.getAllReturns)
+)
+
+router.get(
+  "/my-branch/returns",
+  roleGuard(RoleCode.BRANCH_MANAGER),
+  asyncHandler(StockRequestController.getMyBranchReturns)
+)
+
 // Download PDF receipt for any request
 router.get(
   "/:id/receipt",

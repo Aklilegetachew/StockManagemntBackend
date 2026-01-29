@@ -179,8 +179,14 @@ export class StockRequestController {
 
   static async receiveStock(req: Request, res: Response) {
     const { id } = req.params
+    const { items } = req.body // [{ productId, receivedQuantity, returnedQuantity, reason }]
     const userId = (req as any).user?.id
-    const request = await StockRequestService.receiveStock(id)
+
+    if (!Array.isArray(items)) {
+      throw new AppError("Items must be an array", 400)
+    }
+
+    const request = await StockRequestService.receiveStock(id, items, userId)
 
     // Check if PDF receipt is requested
     if (req.query.receipt === "pdf") {
@@ -206,6 +212,29 @@ export class StockRequestController {
     }
 
     return sendResponse(res, 200, true, "Stock received successfully", request)
+  }
+
+  static async getAllReturns(req: Request, res: Response) {
+    const returns = await StockRequestService.getAllReturns()
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Stock returns fetched successfully",
+      returns
+    )
+  }
+
+  static async getMyBranchReturns(req: Request, res: Response) {
+    const branchId = (req as any).user.branchId
+    const returns = await StockRequestService.getBranchReturns(branchId)
+    return sendResponse(
+      res,
+      200,
+      true,
+      "My branch stock returns fetched successfully",
+      returns
+    )
   }
 
   static async getMyBranchRequests(req: Request, res: Response) {

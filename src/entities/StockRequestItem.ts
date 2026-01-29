@@ -28,4 +28,20 @@ export class StockRequestItem {
     nullable: true,
   })
   approvedQuantity!: number
+
+  @Column({
+    type: "decimal",
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  receivedQuantity!: number
+
+  @Column({
+    type: "decimal",
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  returnedQuantity!: number
 }

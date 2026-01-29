@@ -30,7 +30,7 @@ router.put(
 // Assign product to branch
 router.post(
   "/:id/assign-branch",
-  roleGuard(RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),
   asyncHandler(ProductController.assignProductToBranch)
 )
 
