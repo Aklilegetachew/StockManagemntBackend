@@ -13,25 +13,25 @@ router.use(authMiddleware)
 
 router.get(
   "/inventory/low-stock",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getLowStockByBranch)
 )
 
 router.get(
   "/inventory/central-stock",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR ),
   asyncHandler(AnalyticsController.getCentralStockHealth)
 )
 
 router.get(
   "/inventory/pending-requests",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER,RoleCode.SUPERVISOR ),
   asyncHandler(AnalyticsController.getPendingRequests)
 )
 
 router.get(
   "/inventory/product-status",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getProductStatus)
 )
 
@@ -39,19 +39,19 @@ router.get(
 
 router.get(
   "/products/movement",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getProductMovement)
 )
 
 router.get(
   "/products/branch-movement",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getBranchWiseMovement)
 )
 
 router.get(
   "/products/aging",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getProductAging)
 )
 
@@ -59,13 +59,13 @@ router.get(
 
 router.get(
   "/branches/request-frequency",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getBranchRequestFrequency)
 )
 
 router.get(
   "/branches/stock-holding",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getStockHoldingDuration)
 )
 
@@ -73,19 +73,19 @@ router.get(
 
 router.get(
   "/requests/status-breakdown",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getRequestStatusBreakdown)
 )
 
 router.get(
   "/requests/partial-approvals",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getPartialApprovals)
 )
 
 router.get(
   "/requests/user-activity",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(AnalyticsController.getUserActivity)
 )
 
@@ -96,7 +96,8 @@ router.get(
   roleGuard(
     RoleCode.SUPER_ADMIN,
     RoleCode.CENTRAL_MANAGER,
-    RoleCode.BRANCH_MANAGER
+    RoleCode.BRANCH_MANAGER,
+     RoleCode.SUPERVISOR
   ),
   asyncHandler(AnalyticsController.getBranchOverview)
 )
@@ -106,7 +107,8 @@ router.get(
   roleGuard(
     RoleCode.SUPER_ADMIN,
     RoleCode.CENTRAL_MANAGER,
-    RoleCode.BRANCH_MANAGER
+    RoleCode.BRANCH_MANAGER,
+    RoleCode.SUPERVISOR
   ),
   asyncHandler(AnalyticsController.getBranchLowStock)
 )
@@ -116,7 +118,8 @@ router.get(
   roleGuard(
     RoleCode.SUPER_ADMIN,
     RoleCode.CENTRAL_MANAGER,
-    RoleCode.BRANCH_MANAGER
+    RoleCode.BRANCH_MANAGER,
+    RoleCode.SUPERVISOR
   ),
   asyncHandler(AnalyticsController.getBranchRecentDispatched)
 )

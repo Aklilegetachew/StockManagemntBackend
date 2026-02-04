@@ -15,31 +15,36 @@ const email_1 = require("../../utils/email");
 const crypto_1 = __importDefault(require("crypto"));
 class UserService {
     static async signup(data) {
-        const { fullName, email, username, password, roleCode, branchId } = data;
+        const { fullName, email, username, password, role: roleId, branch: branchId, } = data;
+        // Check if email or username already exists
         const exists = await this.userRepo.findOne({
             where: [{ email }, { username }],
         });
         if (exists)
             throw new AppError_1.AppError("User already exists", 409);
-        const role = await this.roleRepo.findOneBy({ code: roleCode });
+        // Fetch the role entity using the UUID from request
+        const role = await this.roleRepo.findOneBy({ id: roleId });
         if (!role)
-            throw new AppError_1.AppError("Invalid role");
-        let branch = null;
+            throw new AppError_1.AppError("Invalid role", 400);
+        // Assign branch only if role requires it
+        let assignedBranch = null;
         if (role.code === "BRANCH_MANAGER") {
             if (!branchId)
-                throw new AppError_1.AppError("Branch is required");
-            branch = await this.branchRepo.findOneBy({ id: branchId });
-            if (!branch)
-                throw new AppError_1.AppError("Branch not found");
+                throw new AppError_1.AppError("Branch is required for branch managers", 400);
+            assignedBranch = await this.branchRepo.findOneBy({ id: branchId });
+            if (!assignedBranch)
+                throw new AppError_1.AppError("Branch not found", 404);
         }
+        // Create user entity
         const user = this.userRepo.create({
             fullName,
             email,
             username,
             passwordHash: await (0, password_1.hashPassword)(password),
             role,
-            branch,
+            branch: assignedBranch,
         });
+        // Save to database
         return this.userRepo.save(user);
     }
     static async login(data) {
@@ -57,7 +62,15 @@ class UserService {
             role: user.role.code,
             branchId: user.branch?.id,
         });
-        return { token, user };
+        const safeUser = {
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            username: user.username,
+            role: user.role.code,
+            branch: user.branch?.id,
+        };
+        return { token, user: safeUser };
     }
     static async forgotPassword(email) {
         const user = await this.userRepo.findOne({ where: { email } });
@@ -87,6 +100,20 @@ class UserService {
         user.resetPasswordToken = undefined;
         user.resetPasswordExpires = undefined;
         await this.userRepo.save(user);
+    }
+    static async findAll() {
+        return this.userRepo.find({
+            relations: ["role", "branch"],
+        });
+    }
+    static async findById(userId) {
+        const user = await this.userRepo.findOne({
+            where: { id: userId },
+            relations: ["role", "branch"],
+        });
+        if (!user)
+            throw new AppError_1.AppError("User not found", 404);
+        return user;
     }
     static async editUser(userId, data) {
         const user = await this.userRepo.findOneBy({ id: userId });

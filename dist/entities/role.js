@@ -17,6 +17,7 @@ var RoleCode;
     RoleCode["SUPER_ADMIN"] = "SUPER_ADMIN";
     RoleCode["CENTRAL_MANAGER"] = "CENTRAL_MANAGER";
     RoleCode["BRANCH_MANAGER"] = "BRANCH_MANAGER";
+    RoleCode["SUPERVISOR"] = "SUPERVISOR";
 })(RoleCode || (exports.RoleCode = RoleCode = {}));
 let Role = class Role {
 };

@@ -5,6 +5,8 @@ import { StockRequest, StockRequestStatus } from "../entities/StockRequest"
 // Color schemes for different statuses
 const STATUS_COLORS: Record<StockRequestStatus, { primary: string; bg: string; text: string }> = {
   [StockRequestStatus.PENDING]: { primary: "#F59E0B", bg: "#FEF3C7", text: "#92400E" },
+  [StockRequestStatus.PENDING_SUPERVISOR]: { primary: "#D97706", bg: "#FED7AA", text: "#9A3412" },
+  [StockRequestStatus.PENDING_BRANCH_APPROVAL]: { primary: "#EA580C", bg: "#FFEDD5", text: "#9A3412" },
   [StockRequestStatus.APPROVED]: { primary: "#3B82F6", bg: "#DBEAFE", text: "#1E40AF" },
   [StockRequestStatus.DISPATCHED]: { primary: "#8B5CF6", bg: "#EDE9FE", text: "#5B21B6" },
   [StockRequestStatus.RECEIVED]: { primary: "#10B981", bg: "#D1FAE5", text: "#065F46" },
@@ -115,8 +117,8 @@ function drawItemsTable(
   let headers: string[]
 
   if (isReceived) {
-    colWidths = [30, 180, 65, 65, 65, 65, 25]
-    headers = ["#", "Product Name", "Req.", "Appr.", "Recv.", "Retr.", "Unit"]
+    colWidths = [30, 200, 80, 80, 80, 25]
+    headers = ["#", "Product Name", "Req.", "Appr.", "Recv.", "Unit"]
   } else if (isApprovedOrDispatched) {
     colWidths = [40, 200, 80, 80, 95]
     headers = ["#", "Product Name", "Requested", "Approved", "Unit"]
@@ -306,15 +308,10 @@ export function generateStockRequestReceipt(
 
     if (request.status === StockRequestStatus.RECEIVED) {
       const totalReceived = request.items.reduce((sum, item) => sum + Number(item.receivedQuantity || 0), 0)
-      const totalReturned = request.items.reduce((sum, item) => sum + Number(item.returnedQuantity || 0), 0)
       
       currentY += 15
       doc.fillColor("#10B981") // Green for received
         .text(`Total Received: ${totalReceived.toFixed(2)}`, doc.page.width - 250, currentY)
-      
-      currentY += 15
-      doc.fillColor("#EF4444") // Red for returned
-        .text(`Total Returned: ${totalReturned.toFixed(2)}`, doc.page.width - 250, currentY)
     }
   }
   

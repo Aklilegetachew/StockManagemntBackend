@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Branch = void 0;
 const typeorm_1 = require("typeorm");
 const user_1 = require("./user");
+const BranchProduct_1 = require("./BranchProduct");
 let Branch = class Branch {
 };
 exports.Branch = Branch;
@@ -35,6 +36,10 @@ __decorate([
     (0, typeorm_1.OneToMany)(() => user_1.User, (user) => user.branch),
     __metadata("design:type", Array)
 ], Branch.prototype, "users", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => BranchProduct_1.BranchProduct, (bp) => bp.branch),
+    __metadata("design:type", Array)
+], Branch.prototype, "products", void 0);
 exports.Branch = Branch = __decorate([
     (0, typeorm_1.Entity)({ name: "branches" })
 ], Branch);

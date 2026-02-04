@@ -26,8 +26,8 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({
         type: "decimal",
-        precision: 14,
-        scale: 3,
+        precision: 12,
+        scale: 2,
         default: 0,
     }),
     __metadata("design:type", Number)

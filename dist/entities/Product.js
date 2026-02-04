@@ -13,6 +13,7 @@ exports.Product = void 0;
 // src/entities/Product.ts
 const typeorm_1 = require("typeorm");
 const BranchProduct_1 = require("./BranchProduct");
+const Category_1 = require("./Category");
 let Product = class Product {
 };
 exports.Product = Product;
@@ -44,6 +45,12 @@ __decorate([
     (0, typeorm_1.OneToMany)(() => BranchProduct_1.BranchProduct, (bp) => bp.product),
     __metadata("design:type", Array)
 ], Product.prototype, "branches", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => Category_1.Category, (category) => category.products, {
+        nullable: true,
+    }),
+    __metadata("design:type", Category_1.Category)
+], Product.prototype, "category", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

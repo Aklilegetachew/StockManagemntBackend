@@ -5,6 +5,7 @@ export enum RoleCode {
   SUPER_ADMIN = "SUPER_ADMIN",
   CENTRAL_MANAGER = "CENTRAL_MANAGER",
   BRANCH_MANAGER = "BRANCH_MANAGER",
+  SUPERVISOR = "SUPERVISOR",
 }
 
 @Entity({ name: "roles" })

@@ -1,3 +1,4 @@
+import { Not, In } from "typeorm"
 import { AppDataSource } from "../../data-source"
 import { StockRequest, StockRequestStatus } from "../../entities/StockRequest"
 import { StockRequestItem } from "../../entities/StockRequestItem"
@@ -25,7 +26,8 @@ export class StockRequestService {
   static async createRequest(
     branchId: string,
     userId: string,
-    items: { productId: string; quantity: number }[]
+    items: { productId: string; quantity: number }[],
+    urgency?: boolean
   ) {
     if (!items.length)
       throw new AppError("At least one product is required", 400)
@@ -59,14 +61,32 @@ export class StockRequestService {
       )
     }
 
+    const isUrgent = urgency === true
     const stockRequest = this.stockRequestRepo.create({
       branch,
       requestedBy: user,
       items: stockRequestItems,
-      status: StockRequestStatus.PENDING,
+      status: isUrgent ? StockRequestStatus.PENDING_SUPERVISOR : StockRequestStatus.PENDING,
+      urgency: isUrgent,
     })
 
     return this.stockRequestRepo.save(stockRequest)
+  }
+
+  // Central views requests (excludes supervisor-specific statuses)
+  static async getCentralRequests() {
+    return await this.stockRequestRepo.find({
+      where: {
+        status: Not(
+          In([
+            StockRequestStatus.PENDING_SUPERVISOR,
+            StockRequestStatus.PENDING_BRANCH_APPROVAL,
+          ])
+        ),
+      },
+      relations: ["items", "branch", "requestedBy", "assignedBranch"],
+      order: { createdAt: "DESC" },
+    })
   }
 
   // Central approves request (can be partial)
@@ -226,32 +246,27 @@ export class StockRequestService {
     receivingItems: {
       productId: string
       receivedQuantity: number
-      returnedQuantity: number
-      reason?: string
     }[],
-    userId?: string
+    _userId?: string
   ) {
     return await AppDataSource.transaction(async (manager) => {
       const requestRepo = manager.getRepository(StockRequest)
       const branchProductRepo = manager.getRepository(BranchProduct)
       const movementRepo = manager.getRepository(StockMovement)
-      const returnRepo = manager.getRepository(StockRequestReturn)
-      const userRepo = manager.getRepository(User)
 
       const request = await requestRepo.findOne({
         where: { id: requestId },
-        relations: ["items", "items.product", "branch", "requestedBy"],
+        relations: ["items", "items.product", "branch", "requestedBy", "assignedBranch"],
       })
 
       if (!request) throw new AppError("Stock request not found", 404)
       if (request.status !== StockRequestStatus.DISPATCHED)
         throw new AppError("Only dispatched requests can be received", 400)
 
-      const reportedBy = userId
-        ? await userRepo.findOneBy({ id: userId })
-        : undefined
+      const receiveNote = request.assignedBranch
+        ? `Received from ${request.assignedBranch.name}`
+        : "Received from central"
 
-      // Map for easier access
       const itemMap = new Map(request.items.map((i) => [i.product.id, i]))
 
       for (const receiveInfo of receivingItems) {
@@ -264,68 +279,48 @@ export class StockRequestService {
         }
 
         const approvedQty = Number(item.approvedQuantity ?? 0)
-        const totalReporting =
-          Number(receiveInfo.receivedQuantity) +
-          Number(receiveInfo.returnedQuantity)
+        const receivedQty = Number(receiveInfo.receivedQuantity)
 
-        if (totalReporting > approvedQty) {
+        if (receivedQty !== approvedQty) {
           throw new AppError(
-            `Total received and returned (${totalReporting}) for ${item.product.name} exceeds approved amount (${approvedQty})`,
+            `Received quantity for ${item.product.name} must equal approved amount (${approvedQty})`,
             400
           )
         }
 
-        // 1. Handle received portion
-        if (receiveInfo.receivedQuantity > 0) {
-          let branchProduct = await branchProductRepo.findOne({
-            where: {
-              branch: { id: request.branch.id },
-              product: { id: item.product.id },
-            },
-          })
+        if (receivedQty <= 0) continue
 
-          if (!branchProduct) {
-            branchProduct = branchProductRepo.create({
-              branch: request.branch,
-              product: item.product,
-              quantity: roundQty(receiveInfo.receivedQuantity),
-            })
-          } else {
-            const currentQty = Number(branchProduct.quantity)
-            branchProduct.quantity = roundQty(
-              currentQty + receiveInfo.receivedQuantity
-            )
-          }
+        let branchProduct = await branchProductRepo.findOne({
+          where: {
+            branch: { id: request.branch.id },
+            product: { id: item.product.id },
+          },
+        })
 
-          await branchProductRepo.save(branchProduct)
-
-          await movementRepo.save({
+        if (!branchProduct) {
+          branchProduct = branchProductRepo.create({
+            branch: request.branch,
             product: item.product,
-            branch: request.branch,
-            type: StockMovementType.ADDITION,
-            quantity: receiveInfo.receivedQuantity,
-            reference: request.id,
-            note: "Received from central",
-            requestedBy: request.requestedBy,
+            quantity: roundQty(receivedQty),
           })
+        } else {
+          const currentQty = Number(branchProduct.quantity)
+          branchProduct.quantity = roundQty(currentQty + receivedQty)
         }
 
-        // 2. Handle returned portion
-        if (receiveInfo.returnedQuantity > 0) {
-          const stockReturn = returnRepo.create({
-            stockRequest: request,
-            stockRequestItem: item,
-            branch: request.branch,
-            quantity: receiveInfo.returnedQuantity,
-            reason: receiveInfo.reason || "Damaged/Defective",
-            reportedBy: reportedBy || undefined,
-          })
-          await returnRepo.save(stockReturn)
-        }
+        await branchProductRepo.save(branchProduct)
 
-        // 3. Update request item record
-        item.receivedQuantity = receiveInfo.receivedQuantity
-        item.returnedQuantity = receiveInfo.returnedQuantity
+        await movementRepo.save({
+          product: item.product,
+          branch: request.branch,
+          type: StockMovementType.ADDITION,
+          quantity: receivedQty,
+          reference: request.id,
+          note: receiveNote,
+          requestedBy: request.requestedBy,
+        })
+
+        item.receivedQuantity = receivedQty
         await manager.getRepository(StockRequestItem).save(item)
       }
 
@@ -372,7 +367,10 @@ export class StockRequestService {
       relations: ["items", "items.product", "branch"],
     })
     if (!request) throw new AppError("Stock request not found", 404)
-    if (request.status !== StockRequestStatus.PENDING)
+    if (
+      request.status !== StockRequestStatus.PENDING &&
+      request.status !== StockRequestStatus.PENDING_SUPERVISOR
+    )
       throw new AppError("Only pending requests can be edited", 400)
 
     for (const item of items) {
@@ -407,5 +405,202 @@ export class StockRequestService {
       relations: ["items", "branch", "requestedBy"],
     })
     return requests
+  }
+
+  // Supervisor: get requests pending supervisor decision
+  static async getSupervisorPendingRequests() {
+    return await this.stockRequestRepo.find({
+      where: { status: StockRequestStatus.PENDING_SUPERVISOR },
+      relations: ["items", "items.product", "branch", "requestedBy"],
+      order: { createdAt: "ASC" },
+    })
+  }
+
+  // Supervisor: assign a branch to fulfill the request
+  static async supervisorAssignBranch(requestId: string, branchId: string) {
+    const request = await this.stockRequestRepo.findOne({
+      where: { id: requestId },
+      relations: ["items", "items.product", "branch", "assignedBranch"],
+    })
+    if (!request) throw new AppError("Stock request not found", 404)
+    if (request.status !== StockRequestStatus.PENDING_SUPERVISOR)
+      throw new AppError(
+        "Only requests pending supervisor decision can be assigned",
+        409
+      )
+
+    const assignedBranch = await this.branchRepo.findOneBy({
+      id: branchId,
+      isActive: true,
+    })
+    if (!assignedBranch) throw new AppError("Branch not found", 404)
+    if (assignedBranch.id === request.branch.id)
+      throw new AppError(
+        "Cannot assign the requesting branch to fulfill its own request",
+        400
+      )
+
+    request.assignedBranch = assignedBranch
+    request.status = StockRequestStatus.PENDING_BRANCH_APPROVAL
+    return this.stockRequestRepo.save(request)
+  }
+
+  // Supervisor: forward request to central
+  static async supervisorForwardToCentral(requestId: string) {
+    const request = await this.stockRequestRepo.findOne({
+      where: { id: requestId },
+      relations: ["items", "items.product", "branch"],
+    })
+    if (!request) throw new AppError("Stock request not found", 404)
+    if (request.status !== StockRequestStatus.PENDING_SUPERVISOR)
+      throw new AppError(
+        "Only requests pending supervisor decision can be forwarded",
+        409
+      )
+
+    request.supervisorForwardedToCentral = true
+    request.status = StockRequestStatus.PENDING
+    return this.stockRequestRepo.save(request)
+  }
+
+  // Branch Manager: get requests assigned to my branch
+  static async getAssignedToMyBranchRequests(branchId: string) {
+    return await this.stockRequestRepo.find({
+      where: {
+        assignedBranch: { id: branchId },
+        status: StockRequestStatus.PENDING_BRANCH_APPROVAL,
+      },
+      relations: ["items", "items.product", "branch", "assignedBranch", "requestedBy"],
+      order: { createdAt: "ASC" },
+    })
+  }
+
+  // Branch Manager: approve from assigned branch (deduct from BranchProduct)
+  static async approveFromBranch(
+    requestId: string,
+    branchId: string,
+    approvedItems: { productId: string; approvedQuantity: number }[],
+    note?: string,
+    approverId?: string
+  ) {
+    return await AppDataSource.transaction(async (manager) => {
+      const requestRepo = manager.getRepository(StockRequest)
+      const branchProductRepo = manager.getRepository(BranchProduct)
+      const movementRepo = manager.getRepository(StockMovement)
+      const stockRequestItemRepo = manager.getRepository(StockRequestItem)
+      const userRepo = manager.getRepository(User)
+
+      const request = await requestRepo.findOne({
+        where: { id: requestId },
+        relations: ["items", "items.product", "branch", "assignedBranch", "requestedBy"],
+      })
+
+      if (!request) throw new AppError("Stock request not found", 404)
+      if (request.status !== StockRequestStatus.PENDING_BRANCH_APPROVAL)
+        throw new AppError(
+          "Only requests pending branch approval can be approved",
+          409
+        )
+      if (!request.assignedBranch || request.assignedBranch.id !== branchId)
+        throw new AppError(
+          "This request is not assigned to your branch",
+          403
+        )
+
+      const requestItemMap = new Map(
+        request.items.map((item) => [item.product.id, item])
+      )
+
+      for (const approvedItem of approvedItems) {
+        const item = requestItemMap.get(approvedItem.productId)
+        if (!item)
+          throw new AppError(
+            `Product ${approvedItem.productId} is not part of this request`,
+            404
+          )
+        if (approvedItem.approvedQuantity < 0)
+          throw new AppError(
+            `Approved quantity cannot be negative (${item.product.name})`,
+            400
+          )
+        if (approvedItem.approvedQuantity > item.requestedQuantity)
+          throw new AppError(
+            `Approved quantity exceeds requested quantity for ${item.product.name}`,
+            400
+          )
+
+        if (approvedItem.approvedQuantity > 0) {
+          const branchProduct = await branchProductRepo.findOne({
+            where: {
+              branch: { id: branchId },
+              product: { id: item.product.id },
+            },
+          })
+          const availableQty = branchProduct
+            ? Number(branchProduct.quantity)
+            : 0
+          if (approvedItem.approvedQuantity > availableQty)
+            throw new AppError(
+              `Insufficient stock for ${item.product.name}. Available: ${availableQty}, Requested: ${approvedItem.approvedQuantity}`,
+              400
+            )
+        }
+      }
+
+      let approvedBy: User | undefined
+      if (approverId) {
+        const user = await userRepo.findOneBy({ id: approverId })
+        if (user) approvedBy = user
+      }
+
+      for (const approvedItem of approvedItems) {
+        const item = requestItemMap.get(approvedItem.productId)!
+        const approvedQty = approvedItem.approvedQuantity
+        item.approvedQuantity = approvedQty
+        await stockRequestItemRepo.save(item)
+
+        if (approvedQty <= 0) continue
+
+        const branchProduct = await branchProductRepo.findOne({
+          where: {
+            branch: { id: branchId },
+            product: { id: item.product.id },
+          },
+        })
+        if (!branchProduct)
+          throw new AppError(
+            `Branch stock missing for product: ${item.product.name}`,
+            400
+          )
+
+        const currentQty = Number(branchProduct.quantity)
+        if (approvedQty > currentQty)
+          throw new AppError(
+            `Insufficient stock for product: ${item.product.name}`,
+            400
+          )
+
+        branchProduct.quantity = roundQty(currentQty - approvedQty)
+        await branchProductRepo.save(branchProduct)
+
+        await movementRepo.save({
+          product: item.product,
+          branch: request.assignedBranch!,
+          type: StockMovementType.DEDUCTION,
+          quantity: approvedQty,
+          reference: request.id,
+          note: `Dispatched to ${request.branch.name} (branch-to-branch)`,
+          requestedBy: request.requestedBy,
+          approvedBy: approvedBy,
+        })
+      }
+
+      request.status = StockRequestStatus.DISPATCHED
+      request.approvedAt = new Date()
+      request.dispatchedAt = new Date()
+      request.note = note ?? ""
+
+      return requestRepo.save(request)
+    })
   }
 }

@@ -32,12 +32,21 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({
         type: "decimal",
-        precision: 14,
-        scale: 3,
+        precision: 12,
+        scale: 2,
         default: 0,
     }),
     __metadata("design:type", Number)
 ], BranchProduct.prototype, "quantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: "decimal",
+        precision: 12,
+        scale: 2,
+        default: 0,
+    }),
+    __metadata("design:type", Number)
+], BranchProduct.prototype, "price", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: true }),
     __metadata("design:type", Boolean)

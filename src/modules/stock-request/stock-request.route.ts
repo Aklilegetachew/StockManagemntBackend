@@ -26,6 +26,38 @@ router.put(
   asyncHandler(StockRequestController.receiveStock)
 )
 
+// --------------------- Supervisor routes (must be before /:id) ---------------------
+router.get(
+  "/supervisor/pending",
+  roleGuard(RoleCode.SUPERVISOR),
+  asyncHandler(StockRequestController.getSupervisorPendingRequests)
+)
+
+router.put(
+  "/:id/supervisor/assign-branch",
+  roleGuard(RoleCode.SUPERVISOR),
+  asyncHandler(StockRequestController.supervisorAssignBranch)
+)
+
+router.put(
+  "/:id/supervisor/forward-to-central",
+  roleGuard(RoleCode.SUPERVISOR),
+  asyncHandler(StockRequestController.supervisorForwardToCentral)
+)
+
+// Branch Manager: requests assigned to my branch for approval
+router.get(
+  "/assigned-to-my-branch",
+  roleGuard(RoleCode.BRANCH_MANAGER),
+  asyncHandler(StockRequestController.getAssignedToMyBranchRequests)
+)
+
+router.put(
+  "/:id/approve-from-branch",
+  roleGuard(RoleCode.BRANCH_MANAGER),
+  asyncHandler(StockRequestController.approveFromBranch)
+)
+
 // --------------------- Central / Admin routes ---------------------
 // Central views all requests (can filter in future)
 router.get(
@@ -88,7 +120,12 @@ router.get(
 // Download PDF receipt for any request
 router.get(
   "/:id/receipt",
-  roleGuard(RoleCode.BRANCH_MANAGER, RoleCode.CENTRAL_MANAGER, RoleCode.SUPER_ADMIN),
+  roleGuard(
+    RoleCode.BRANCH_MANAGER,
+    RoleCode.CENTRAL_MANAGER,
+    RoleCode.SUPER_ADMIN,
+    RoleCode.SUPERVISOR
+  ),
   asyncHandler(StockRequestController.downloadReceipt)
 )
 

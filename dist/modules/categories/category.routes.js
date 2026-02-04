@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const category_controller_1 = require("./category.controller");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../middlewares/role.middleware");
+const role_1 = require("../../entities/role");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authMiddleware);
+router.post("/", (0, role_middleware_1.roleGuard)(role_1.RoleCode.SUPER_ADMIN, role_1.RoleCode.CENTRAL_MANAGER), (0, asyncHandler_1.asyncHandler)(category_controller_1.CategoryController.createCategory));
+router.get("/", (0, role_middleware_1.roleGuard)(role_1.RoleCode.SUPER_ADMIN, role_1.RoleCode.CENTRAL_MANAGER, role_1.RoleCode.BRANCH_MANAGER), (0, asyncHandler_1.asyncHandler)(category_controller_1.CategoryController.getCategories));
+router.get("/:id", (0, role_middleware_1.roleGuard)(role_1.RoleCode.SUPER_ADMIN, role_1.RoleCode.CENTRAL_MANAGER, role_1.RoleCode.BRANCH_MANAGER), (0, asyncHandler_1.asyncHandler)(category_controller_1.CategoryController.getCategoryById));
+router.put("/:id", (0, role_middleware_1.roleGuard)(role_1.RoleCode.SUPER_ADMIN, role_1.RoleCode.CENTRAL_MANAGER), (0, asyncHandler_1.asyncHandler)(category_controller_1.CategoryController.updateCategory));
+exports.default = router;

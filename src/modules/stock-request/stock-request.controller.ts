@@ -16,11 +16,12 @@ export class StockRequestController {
   static async createRequest(req: Request, res: Response) {
     const branchId = (req as any).user.branchId
     const userId = (req as any).user.id
-    const { items } = req.body // [{ productId, quantity }]
+    const { items, urgency } = req.body // [{ productId, quantity }], urgency?: boolean
     const request = await StockRequestService.createRequest(
       branchId,
       userId,
-      items
+      items,
+      urgency
     )
 
     // Check if PDF receipt is requested
@@ -56,9 +57,7 @@ export class StockRequestController {
   }
 
   static async getAllRequests(req: Request, res: Response) {
-    const requests = await StockRequestService.stockRequestRepo.find({
-      relations: ["items", "branch", "requestedBy"],
-    })
+    const requests = await StockRequestService.getCentralRequests()
     return sendResponse(
       res,
       200,
@@ -179,7 +178,7 @@ export class StockRequestController {
 
   static async receiveStock(req: Request, res: Response) {
     const { id } = req.params
-    const { items } = req.body // [{ productId, receivedQuantity, returnedQuantity, reason }]
+    const { items } = req.body // [{ productId, receivedQuantity }] - receivedQuantity must equal approvedQuantity
     const userId = (req as any).user?.id
 
     if (!Array.isArray(items)) {
@@ -296,6 +295,106 @@ export class StockRequestController {
     )
   }
 
+  // Supervisor: get requests pending supervisor decision
+  static async getSupervisorPendingRequests(req: Request, res: Response) {
+    const requests = await StockRequestService.getSupervisorPendingRequests()
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Supervisor pending requests fetched successfully",
+      requests
+    )
+  }
+
+  // Supervisor: assign a branch to fulfill the request
+  static async supervisorAssignBranch(req: Request, res: Response) {
+    const { id } = req.params
+    const { branchId } = req.body
+    if (!branchId) throw new AppError("branchId is required", 400)
+    const request = await StockRequestService.supervisorAssignBranch(id, branchId)
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Branch assigned successfully",
+      request
+    )
+  }
+
+  // Supervisor: forward request to central
+  static async supervisorForwardToCentral(req: Request, res: Response) {
+    const { id } = req.params
+    const request = await StockRequestService.supervisorForwardToCentral(id)
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Request forwarded to central successfully",
+      request
+    )
+  }
+
+  // Branch Manager: get requests assigned to my branch
+  static async getAssignedToMyBranchRequests(req: Request, res: Response) {
+    const branchId = (req as any).user.branchId
+    const requests = await StockRequestService.getAssignedToMyBranchRequests(
+      branchId
+    )
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Assigned to my branch requests fetched successfully",
+      requests
+    )
+  }
+
+  // Branch Manager: approve from assigned branch
+  static async approveFromBranch(req: Request, res: Response) {
+    const { id } = req.params
+    const branchId = (req as any).user.branchId
+    const userId = (req as any).user?.id
+    const { items, note } = req.body
+
+    if (!Array.isArray(items))
+      throw new AppError("Items must be an array", 400)
+    if (items.length === 0)
+      throw new AppError("At least one item must be approved", 400)
+
+    const approvedItems = items.map((item: any, index: number) => {
+      if (!item.productId)
+        throw new AppError(`Missing productId at index ${index}`, 400)
+      if (
+        typeof item.approvedQuantity !== "number" ||
+        isNaN(item.approvedQuantity)
+      )
+        throw new AppError(
+          `Invalid approvedQuantity for product ${item.productId}`,
+          400
+        )
+      return {
+        productId: item.productId,
+        approvedQuantity: item.approvedQuantity,
+      }
+    })
+
+    const request = await StockRequestService.approveFromBranch(
+      id,
+      branchId,
+      approvedItems,
+      note,
+      userId
+    )
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Request approved and dispatched from branch successfully",
+      request
+    )
+  }
+
   // New endpoint to download receipt for any existing request
   static async downloadReceipt(req: Request, res: Response) {
     const { id } = req.params
@@ -316,6 +415,8 @@ export class StockRequestController {
 
     switch (request.status) {
       case "PENDING":
+      case "PENDING_SUPERVISOR":
+      case "PENDING_BRANCH_APPROVAL":
         doc = generateRequestCreatedReceipt(request, request.requestedBy?.fullName || userName)
         filename = `stock-request-${id.substring(0, 8)}.pdf`
         break

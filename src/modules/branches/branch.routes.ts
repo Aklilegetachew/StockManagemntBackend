@@ -26,7 +26,7 @@ router.put(
 // SUPER_ADMIN & CENTRAL_MANAGER
 router.get(
   "/",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(BranchController.getBranches)
 )
 
@@ -45,13 +45,13 @@ router.patch(
 
 router.get(
   "/stock-summary",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(BranchController.getBranchStockSummary)
 )
 
 router.get(
   "/:id/stocks",
-  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.BRANCH_MANAGER),
+  roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.BRANCH_MANAGER, RoleCode.SUPERVISOR),
   asyncHandler(BranchController.getBranchStock)
 )
 

@@ -52,7 +52,7 @@ export class StockMovementService {
 
     const movements = await query.getMany()
     if (!movements.length) throw new AppError("No stock movement found", 404)
-
+    
     return movements
   }
 }

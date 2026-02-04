@@ -13,6 +13,8 @@ import { StockRequestItem } from "./StockRequestItem"
 
 export enum StockRequestStatus {
   PENDING = "PENDING",
+  PENDING_SUPERVISOR = "PENDING_SUPERVISOR",
+  PENDING_BRANCH_APPROVAL = "PENDING_BRANCH_APPROVAL",
   APPROVED = "APPROVED",
   REJECTED = "REJECTED",
   DISPATCHED = "DISPATCHED",
@@ -57,6 +59,15 @@ export class StockRequest {
 
   @Column({ type: "text", nullable: true })
   note?: string // optional note for partial approval or rejection
+
+  @Column({ default: false })
+  urgency!: boolean
+
+  @ManyToOne(() => Branch, { nullable: true, eager: true })
+  assignedBranch?: Branch | null
+
+  @Column({ default: false })
+  supervisorForwardedToCentral!: boolean
 
   @CreateDateColumn()
   createdAt!: Date

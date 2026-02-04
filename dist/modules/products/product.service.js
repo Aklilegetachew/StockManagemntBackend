@@ -6,19 +6,34 @@ const data_source_1 = require("../../data-source");
 const Product_1 = require("../../entities/Product");
 const branches_1 = require("../../entities/branches");
 const BranchProduct_1 = require("../../entities/BranchProduct");
-const AppError_1 = require("../../errors/AppError");
 const CentralStock_1 = require("../../entities/CentralStock");
+const AppError_1 = require("../../errors/AppError");
 class ProductService {
+    // -------------------------
+    // Product
+    // -------------------------
     static async createProduct(data) {
+        if (!data.name || !data.sku) {
+            throw new AppError_1.AppError("Product name and SKU are required", 400);
+        }
         const exists = await this.productRepo.findOne({
-            where: [{ name: data.name }, { sku: data.sku }],
+            where: { name: data.name },
         });
-        if (exists)
-            throw new AppError_1.AppError("Product already exists", 409);
-        // 1️⃣ Create product
+        if (exists) {
+            throw new AppError_1.AppError("A product with the same name already exists", 409);
+        }
+        const checkSku = await this.productRepo.findOne({
+            where: { sku: data.sku },
+        });
+        if (checkSku) {
+            throw new AppError_1.AppError("A product with the same SKU already exists", 409);
+        }
         const product = this.productRepo.create(data);
+        if (data.categoryId) {
+            product.category = { id: data.categoryId };
+        }
         const savedProduct = await this.productRepo.save(product);
-        // 2️⃣ Create corresponding central stock
+        // Ensure central stock is created once
         await this.centralStockRepo.save({
             product: { id: savedProduct.id },
             quantity: 0,
@@ -26,38 +41,71 @@ class ProductService {
         return savedProduct;
     }
     static async getProducts() {
-        return this.productRepo.find({ where: { isActive: true } });
+        return this.productRepo.find({
+            where: { isActive: true },
+            relations: ["category"],
+        });
     }
     static async getProductById(id) {
-        const product = await this.productRepo.findOneBy({ id });
-        if (!product)
+        const product = await this.productRepo.findOne({
+            where: { id },
+            relations: ["category"],
+        });
+        if (!product) {
             throw new AppError_1.AppError("Product not found", 404);
+        }
         return product;
     }
     static async updateProduct(id, data) {
         const product = await this.getProductById(id);
+        // Optional guard: prevent changing immutable fields
+        if ("id" in data) {
+            delete data.id;
+        }
+        if (data.sku && data.sku !== product.sku) {
+            const checkSku = await this.productRepo.findOne({
+                where: { sku: data.sku },
+            });
+            if (checkSku) {
+                throw new AppError_1.AppError("A product with the same SKU already exists", 409);
+            }
+        }
+        if (data.categoryId) {
+            product.category = { id: data.categoryId };
+        }
         Object.assign(product, data);
         return this.productRepo.save(product);
     }
-    static async assignProductToBranch(productId, branchId) {
+    // -------------------------
+    // Branch assignment
+    // -------------------------
+    static async assignProductToBranch(productId, branchId, price, quantity) {
+        if (price < 0 || quantity < 0) {
+            throw new AppError_1.AppError("Price and quantity must be non-negative", 400);
+        }
         const product = await this.getProductById(productId);
-        const branch = await this.branchRepo.findOneBy({
-            id: branchId,
-            isActive: true,
+        const branch = await this.branchRepo.findOne({
+            where: { id: branchId, isActive: true },
         });
-        if (!branch)
-            throw new AppError_1.AppError("Branch not found", 404);
-        const exists = await this.branchProductRepo.findOne({
-            where: { product, branch },
+        if (!branch) {
+            throw new AppError_1.AppError("Branch not found or inactive", 404);
+        }
+        const alreadyAssigned = await this.branchProductRepo.findOne({
+            where: {
+                product: { id: product.id },
+                branch: { id: branch.id },
+            },
         });
-        if (exists)
-            return exists;
-        const bp = this.branchProductRepo.create({
+        if (alreadyAssigned) {
+            throw new AppError_1.AppError("This product is already assigned to the branch", 409);
+        }
+        const branchProduct = this.branchProductRepo.create({
             product,
             branch,
-            quantity: 0,
+            price,
+            quantity,
         });
-        return this.branchProductRepo.save(bp);
+        return this.branchProductRepo.save(branchProduct);
     }
 }
 exports.ProductService = ProductService;

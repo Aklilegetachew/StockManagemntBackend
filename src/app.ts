@@ -8,6 +8,7 @@ import roleRoutes from "./modules/roles/role.routes"
 import branchRoutes from "./modules/branches/branch.routes"
 import productRoutes from "./modules/products/product.routes"
 import stockRequestRoutes from "./modules/stock-request/stock-request.route"
+import branchReturnRoutes from "./modules/branch-returns/branch-return.route"
 import stockMovementRoutes from "./modules/stock-movement/stock-movement.route"
 import centralStockRoutes from "./modules/central-stock/central-stock.route"
 import categoryRoutes from "./modules/categories/category.routes"
@@ -35,6 +36,7 @@ app.use("/api/roles", roleRoutes)
 app.use("/api/branches", branchRoutes)
 app.use("/api/products", productRoutes)
 app.use("/api/stock-requests", stockRequestRoutes)
+app.use("/api/branch-returns", branchReturnRoutes)
 app.use("/api/stock-movements", stockMovementRoutes)
 app.use("/api/central-stock", centralStockRoutes)
 app.use("/api/categories", categoryRoutes)
