@@ -13,7 +13,7 @@ const router = Router()
 router.use(authMiddleware)
 
 // Reports are accessible by Super Admin and Central Manager
-router.use(roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER))
+router.use(roleGuard(RoleCode.SUPER_ADMIN, RoleCode.CENTRAL_MANAGER, RoleCode.SUPERVISOR))
 
 // ==================== 1. CURRENT STOCK REPORT ====================
 // GET /reports/current-stock
